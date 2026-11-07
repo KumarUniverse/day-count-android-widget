@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">DayCount</string>
+    <string name="widget_name">DayCount Widget</string>
+    <string name="widget_description">Shows countdown days until target date or days remaining in challenge.</string>
+</resources>

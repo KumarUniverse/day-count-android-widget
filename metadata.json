@@ -1,0 +1,6 @@
+{
+  "name": "DayCount",
+  "description": "Material UI countdown widgets for upcoming dates and day challenges with authentic Android widget shapes, shadows, and home screen integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan to audit and remove unused dependencies (Firebase, Retrofit, OkHttp, Moshi), unused imports, and dead methods/constants across the codebase so the APK is as small and lightweight as possible.",
+  "updatedAt":  "2026-11-07T18:41:40.521943235Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

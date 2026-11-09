@@ -5,9 +5,11 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.CountdownDatabase
+import com.example.data.CountdownDateUtils
 import com.example.data.CountdownMode
 import com.example.data.CountdownRepository
 import com.example.data.CountdownTimer
+import com.example.widget.DayCountWidgetProvider
 import com.example.widget.WidgetUpdateHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +44,9 @@ class CountdownViewModel(application: Application) : AndroidViewModel(applicatio
   private val _currentTimeMs = MutableStateFlow(System.currentTimeMillis())
   val currentTimeMs: StateFlow<Long> = _currentTimeMs.asStateFlow()
 
+  private var lastObservedDayOrdinal: Long =
+    CountdownDateUtils.toLocalDayOrdinal(_currentTimeMs.value)
+
   private val _selectedTimer = MutableStateFlow<CountdownTimer?>(null)
   val selectedTimer: StateFlow<CountdownTimer?> = _selectedTimer.asStateFlow()
 
@@ -58,16 +63,33 @@ class CountdownViewModel(application: Application) : AndroidViewModel(applicatio
     val database = CountdownDatabase.getDatabase(application)
     repository = CountdownRepository(database.countdownDao())
 
+    // Ensure 24-hour midnight home screen widget update alarm is scheduled
+    DayCountWidgetProvider.scheduleNextMidnightUpdate(application)
+
     viewModelScope.launch {
       repository.seedSampleDataIfEmpty()
     }
 
-    // Live clock ticker every 5 seconds to keep countdown units responsive
+    // Live clock ticker every 1 second so midnight day rollovers are reflected immediately
     viewModelScope.launch {
       while (true) {
-        delay(5000L)
-        _currentTimeMs.value = System.currentTimeMillis()
+        delay(1000L)
+        refreshTimeAndWidgets(forceWidgetUpdate = false)
       }
+    }
+  }
+
+  /**
+   * Updates the current timestamp for all in-app countdown views and refreshes all home screen
+   * widgets immediately when the local calendar day changes (or when forced on resume/time change).
+   */
+  fun refreshTimeAndWidgets(forceWidgetUpdate: Boolean = false) {
+    val now = System.currentTimeMillis()
+    _currentTimeMs.value = now
+    val currentDayOrdinal = CountdownDateUtils.toLocalDayOrdinal(now)
+    if (forceWidgetUpdate || currentDayOrdinal != lastObservedDayOrdinal) {
+      lastObservedDayOrdinal = currentDayOrdinal
+      WidgetUpdateHelper.notifyWidgetDataChanged(getApplication())
     }
   }
 

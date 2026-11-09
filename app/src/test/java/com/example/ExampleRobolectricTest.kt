@@ -1,6 +1,8 @@
 package com.example
 
+import android.app.AlarmManager
 import android.content.Context
+import android.content.Intent
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.luminance
@@ -16,10 +18,12 @@ import com.example.ui.components.WallpaperTheme
 import com.example.widget.DayCountWidgetProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -208,5 +212,94 @@ class ExampleRobolectricTest {
         darkColors.first().luminance() < 0.2f
       )
     }
+  }
+
+  @Test
+  fun `crossing midnight decreases days remaining by 1 and updates progress bar immediately after midnight`() {
+    val tz = TimeZone.getDefault()
+    val day1Noon = Calendar.getInstance(tz).apply {
+      clear()
+      set(2026, Calendar.NOVEMBER, 8, 12, 0, 0)
+      set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    val day1JustBeforeMidnight = Calendar.getInstance(tz).apply {
+      clear()
+      set(2026, Calendar.NOVEMBER, 8, 23, 59, 59)
+      set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    val day2RightAfterMidnight = CountdownDateUtils.nextMidnightEpochMs(day1JustBeforeMidnight, tz)
+
+    // Verify nextMidnightEpochMs lands at 00:00:01 on Nov 9, 2026
+    val nextMidnightCal = Calendar.getInstance(tz).apply {
+      timeInMillis = day2RightAfterMidnight
+    }
+    assertEquals(2026, nextMidnightCal.get(Calendar.YEAR))
+    assertEquals(Calendar.NOVEMBER, nextMidnightCal.get(Calendar.MONTH))
+    assertEquals(9, nextMidnightCal.get(Calendar.DAY_OF_MONTH))
+    assertEquals(0, nextMidnightCal.get(Calendar.HOUR_OF_DAY))
+    assertEquals(0, nextMidnightCal.get(Calendar.MINUTE))
+    assertEquals(1, nextMidnightCal.get(Calendar.SECOND))
+
+    // 1. Specified Days timer (10 days starting on Nov 8)
+    val specifiedDaysTimer = CountdownTimer(
+      title = "10-Day Sprint",
+      mode = CountdownMode.DAY_COUNT.name,
+      targetDaysTotal = 10,
+      startDateEpochMs = day1Noon,
+      showTargetDate = true,
+      dateDisplayMode = DateDisplayMode.DAYS_FRACTION.name
+    )
+    assertEquals(10L, specifiedDaysTimer.daysRemaining(day1JustBeforeMidnight))
+    assertEquals(0.0f, specifiedDaysTimer.progressFraction(day1JustBeforeMidnight), 0.001f)
+    assertEquals("0 / 10 days completed", specifiedDaysTimer.formattedCountdownFooter(day1JustBeforeMidnight))
+
+    // Immediately after midnight (00:00:01 on Nov 9): days left decreases by 1, progress advances to 10%
+    assertEquals(9L, specifiedDaysTimer.daysRemaining(day2RightAfterMidnight))
+    assertEquals(0.10f, specifiedDaysTimer.progressFraction(day2RightAfterMidnight), 0.001f)
+    assertEquals("1 / 10 days completed", specifiedDaysTimer.formattedCountdownFooter(day2RightAfterMidnight))
+
+    // 2. Until Specific Date timer (Nov 8 to Nov 18 = 10 days)
+    val targetDateTimer = CountdownTimer(
+      title = "Trip",
+      mode = CountdownMode.TARGET_DATE.name,
+      startDateEpochMs = day1Noon,
+      targetDateEpochMs = CountdownDateUtils.addLocalCalendarDays(day1Noon, 10, tz),
+      showTargetDate = true,
+      dateDisplayMode = DateDisplayMode.DAYS_FRACTION.name
+    )
+    assertEquals(10L, targetDateTimer.daysRemaining(day1JustBeforeMidnight))
+    assertEquals(0.0f, targetDateTimer.progressFraction(day1JustBeforeMidnight), 0.001f)
+
+    assertEquals(9L, targetDateTimer.daysRemaining(day2RightAfterMidnight))
+    assertEquals(0.10f, targetDateTimer.progressFraction(day2RightAfterMidnight), 0.001f)
+    assertEquals("1 / 10 days completed", targetDateTimer.formattedCountdownFooter(day2RightAfterMidnight))
+  }
+
+  @Test
+  fun `widget provider schedules 24-hour midnight wakeup alarm and reschedules on midnight broadcast`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val shadowAlarmManager = shadowOf(alarmManager)
+
+    val now = 1_762_600_000_000L
+    val expectedTriggerMs = CountdownDateUtils.nextMidnightEpochMs(now)
+    val scheduledMs = DayCountWidgetProvider.scheduleNextMidnightUpdate(context, now)
+
+    assertEquals(expectedTriggerMs, scheduledMs)
+    val nextAlarm = shadowAlarmManager.nextScheduledAlarm
+    assertNotNull("Expected midnight widget alarm to be scheduled", nextAlarm)
+    assertEquals(expectedTriggerMs, nextAlarm!!.triggerAtTime)
+
+    // Receiving ACTION_MIDNIGHT_WIDGET_UPDATE reschedules the next midnight alarm
+    val provider = DayCountWidgetProvider()
+    provider.onReceive(
+      context,
+      Intent(context, DayCountWidgetProvider::class.java).apply {
+        action = DayCountWidgetProvider.ACTION_MIDNIGHT_WIDGET_UPDATE
+      }
+    )
+    assertNotNull(shadowAlarmManager.nextScheduledAlarm)
   }
 }

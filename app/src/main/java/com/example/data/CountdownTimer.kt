@@ -180,6 +180,25 @@ object CountdownDateUtils {
   ): Long {
     return toLocalDayOrdinal(toEpochMs, localTimeZone) - toLocalDayOrdinal(fromEpochMs, localTimeZone)
   }
+
+  /**
+   * Computes the timestamp immediately after the next local midnight (00:00:01.000 of the next
+   * calendar day) so 24-hour widget alarms fire right as the new day begins.
+   */
+  fun nextMidnightEpochMs(
+    nowMs: Long = System.currentTimeMillis(),
+    localTimeZone: TimeZone = TimeZone.getDefault()
+  ): Long {
+    val cal = Calendar.getInstance(localTimeZone).apply {
+      timeInMillis = nowMs
+      add(Calendar.DAY_OF_YEAR, 1)
+      set(Calendar.HOUR_OF_DAY, 0)
+      set(Calendar.MINUTE, 0)
+      set(Calendar.SECOND, 1)
+      set(Calendar.MILLISECOND, 0)
+    }
+    return cal.timeInMillis
+  }
 }
 
 @Entity(tableName = "countdown_timers")
@@ -260,7 +279,7 @@ data class CountdownTimer(
   }
 
   fun isCompleted(nowMs: Long = System.currentTimeMillis()): Boolean {
-    return daysRemaining(nowMs) <= 0L && nowMs >= effectiveTargetEpochMs()
+    return daysRemaining(nowMs) <= 0L
   }
 
   fun progressFraction(nowMs: Long = System.currentTimeMillis()): Float {

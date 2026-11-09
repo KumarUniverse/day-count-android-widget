@@ -44,6 +44,7 @@ object WidgetUpdateHelper {
 
   fun notifyWidgetDataChanged(context: Context) {
     try {
+      DayCountWidgetProvider.scheduleNextMidnightUpdate(context)
       DayCountWidgetProvider.updateAllWidgets(context)
     } catch (_: Exception) {
       // Ignored if widget not added yet

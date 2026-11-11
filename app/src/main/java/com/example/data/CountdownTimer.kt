@@ -37,16 +37,16 @@ enum class WidgetThemeColor(
   val containerHex: Long,
   val onSurfaceHex: Long
 ) {
-  DYNAMIC("DYNAMIC", "Device Dynamic (MUI)", 0xFF38BDF8, 0xFF0F172A, 0xFF1E3A5F, 0xFFF0F9FF),
-  WHITE("WHITE", "Pure White", 0xFF0F172A, 0xFFFFFFFF, 0xFFF1F5F9, 0xFF0F172A),
-  CHARCOAL("CHARCOAL", "Grayish-Black", 0xFFE2E8F0, 0xFF18181B, 0xFF27272A, 0xFFFAFAFA),
-  OCEAN("OCEAN", "Ocean Azure", 0xFF38BDF8, 0xFF0C4A6E, 0xFF0284C7, 0xFFF0F9FF),
-  CORAL("CORAL", "Coral Sunset", 0xFFFB923C, 0xFF7C2D12, 0xFFEA580C, 0xFFFFF7ED),
-  EMERALD("EMERALD", "Emerald Mint", 0xFF34D399, 0xFF064E3B, 0xFF059669, 0xFFECFDF5),
-  VIOLET("VIOLET", "Cosmic Violet", 0xFFA78BFA, 0xFF4C1D95, 0xFF7C3AED, 0xFFF5F3FF),
-  AMBER("AMBER", "Golden Glow", 0xFFFBBF24, 0xFF78350F, 0xFFD97706, 0xFFFEF3C7),
-  ROSE("ROSE", "Rose Quartz", 0xFFFB7185, 0xFF881337, 0xFFE11D48, 0xFFFFF1F2),
-  SLATE("SLATE", "Midnight Minimal", 0xFF94A3B8, 0xFF0F172A, 0xFF334155, 0xFFF8FAFC);
+  DYNAMIC("DYNAMIC", "Device Dynamic (MUI)", 0xFFD0E4FF, 0xFF003258, 0xFF003258, 0xFFD0E4FF),
+  WHITE("WHITE", "Pure White", 0xFF0F172A, 0xFFFFFFFF, 0xFFFFFFFF, 0xFF0F172A),
+  CHARCOAL("CHARCOAL", "Grayish-Black", 0xFFF4F4F5, 0xFF18181B, 0xFF18181B, 0xFFF4F4F5),
+  OCEAN("OCEAN", "Ocean Azure", 0xFFD8E6FF, 0xFF0A3055, 0xFF0A3055, 0xFFD8E6FF),
+  CORAL("CORAL", "Coral Sunset", 0xFFFFDCC1, 0xFF4C2700, 0xFF4C2700, 0xFFFFDCC1),
+  EMERALD("EMERALD", "Emerald Mint", 0xFFC4F1BE, 0xFF0B3926, 0xFF0B3926, 0xFFC4F1BE),
+  VIOLET("VIOLET", "Cosmic Violet", 0xFFEADDFF, 0xFF331C5E, 0xFF331C5E, 0xFFEADDFF),
+  AMBER("AMBER", "Golden Glow", 0xFFFFE08B, 0xFF422C00, 0xFF422C00, 0xFFFFE08B),
+  ROSE("ROSE", "Rose Quartz", 0xFFFFD9DE, 0xFF561329, 0xFF561329, 0xFFFFD9DE),
+  SLATE("SLATE", "Midnight Minimal", 0xFFDCE2F9, 0xFF1B263B, 0xFF1B263B, 0xFFDCE2F9);
 
   companion object {
     fun fromId(id: String): WidgetThemeColor {
@@ -56,8 +56,39 @@ enum class WidgetThemeColor(
 }
 
 object CountdownDateUtils {
+  const val MAX_TITLE_LENGTH = 32
   const val MIN_SPECIFIED_DAYS = 1
   const val MAX_SPECIFIED_DAYS = 36500
+
+  /**
+   * Enforces the maximum 32-character limit on widget titles.
+   */
+  fun sanitizeTitleInput(rawInput: String): String {
+    return rawInput.take(MAX_TITLE_LENGTH)
+  }
+
+  /**
+   * Computes an adaptive font size (in sp) for the widget title so longer titles (up to 32 chars)
+   * scale down smoothly to fit inside both radial and horizontal widget shapes.
+   */
+  fun adaptiveTitleFontSizeSp(title: String, isSymmetricShape: Boolean): Float {
+    val len = title.trim().length
+    return if (isSymmetricShape) {
+      when {
+        len <= 12 -> 13f
+        len <= 18 -> 11.5f
+        len <= 24 -> 10.5f
+        else -> 9.5f
+      }
+    } else {
+      when {
+        len <= 16 -> 15f
+        len <= 22 -> 13.5f
+        len <= 27 -> 12f
+        else -> 10.5f
+      }
+    }
+  }
 
   /**
    * Sanitizes raw numeric keypad input for Specified Days:

@@ -107,7 +107,9 @@ fun CreateEditTimerDialog(
   val cs = MaterialTheme.colorScheme
   val focusManager = LocalFocusManager.current
 
-  var title by remember { mutableStateOf(initialTimer?.title ?: "") }
+  var title by remember {
+    mutableStateOf(CountdownDateUtils.sanitizeTitleInput(initialTimer?.title ?: ""))
+  }
   var subtitle by remember { mutableStateOf(initialTimer?.subtitle ?: "") }
   var mode by remember { mutableStateOf(initialTimer?.getResolvedMode() ?: CountdownMode.TARGET_DATE) }
 
@@ -272,17 +274,40 @@ fun CreateEditTimerDialog(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Custom Label / Title Input
+        // Custom Label / Title Input (Max 32 characters)
         OutlinedTextField(
           value = title,
           onValueChange = {
-            title = it
-            titleError = it.isBlank()
+            val sanitized = CountdownDateUtils.sanitizeTitleInput(it)
+            title = sanitized
+            titleError = sanitized.isBlank()
           },
           label = { Text("Custom Widget Label (Required)") },
           placeholder = { Text("e.g. Summer Vacation, 100 Days of Code") },
           isError = titleError,
           singleLine = true,
+          supportingText = {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = if (titleError) {
+                  "Please enter a custom label for this timer"
+                } else {
+                  "Maximum 32 characters"
+                },
+                color = if (titleError) cs.error else cs.onSurfaceVariant,
+                fontSize = 11.sp
+              )
+              Text(
+                text = "${title.length} / ${CountdownDateUtils.MAX_TITLE_LENGTH}",
+                color = cs.onSurfaceVariant,
+                fontSize = 11.sp,
+                modifier = Modifier.testTag("title_char_counter")
+              )
+            }
+          },
           modifier = Modifier
             .fillMaxWidth()
             .testTag("timer_title_input"),
@@ -295,14 +320,6 @@ fun CreateEditTimerDialog(
             unfocusedContainerColor = cs.surfaceVariant
           )
         )
-        if (titleError) {
-          Text(
-            text = "Please enter a custom label for this timer",
-            color = cs.error,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(start = 8.dp, top = 4.dp)
-          )
-        }
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -1129,7 +1146,7 @@ fun CreateEditTimerDialog(
 
               val timer = CountdownTimer(
                 id = initialTimer?.id ?: 0L,
-                title = title.trim(),
+                title = CountdownDateUtils.sanitizeTitleInput(title.trim()),
                 subtitle = subtitle.trim(),
                 mode = mode.name,
                 targetDateEpochMs = targetDateEpochMs,

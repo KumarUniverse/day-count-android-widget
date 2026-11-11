@@ -11,20 +11,17 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.text.TextPaint
 import android.text.TextUtils
 import android.widget.RemoteViews
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.ui.graphics.toArgb
+import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.CountdownDatabase
@@ -32,6 +29,9 @@ import com.example.data.CountdownDateUtils
 import com.example.data.CountdownTimer
 import com.example.data.WidgetShapeStyle
 import com.example.data.WidgetThemeColor
+import com.example.ui.theme.GOOGLE_SANS_FLEX_ROUNDNESS
+import com.example.ui.theme.buildGoogleSansFlexVariationSettings
+import com.example.ui.theme.computeWidgetOpticalSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -119,6 +119,82 @@ class DayCountWidgetProvider : AppWidgetProvider() {
     const val ACTION_MIDNIGHT_WIDGET_UPDATE = "com.example.widget.ACTION_MIDNIGHT_WIDGET_UPDATE"
     private const val MIDNIGHT_ALARM_REQUEST_CODE = 94021
 
+    @Volatile
+    private var cachedGoogleSansFlexTypeface: Typeface? = null
+
+    private fun getGoogleSansFlexTypeface(context: Context): Typeface {
+      cachedGoogleSansFlexTypeface?.let { return it }
+      val loaded = try {
+        ResourcesCompat.getFont(context, R.font.google_sans_flex)
+      } catch (_: Exception) {
+        null
+      } ?: Typeface.DEFAULT
+      cachedGoogleSansFlexTypeface = loaded
+      return loaded
+    }
+
+    /**
+     * Applies the bundled Google Sans Flex variable font with Roundness 100 ('ROND' 100) and
+     * dynamic Optical Size ('opsz') so letters remain crisp and legible when the widget is resized.
+     */
+    internal fun applyGoogleSansFlex(
+      paint: TextPaint,
+      context: Context,
+      weight: Int,
+      opticalSize: Float,
+      roundness: Float = GOOGLE_SANS_FLEX_ROUNDNESS
+    ) {
+      paint.typeface = getGoogleSansFlexTypeface(context)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        paint.fontVariationSettings = buildGoogleSansFlexVariationSettings(
+          opticalSize = opticalSize,
+          weight = weight,
+          roundness = roundness
+        )
+      }
+    }
+
+    /**
+     * Dynamically steps down the title font size (and recalculates the Google Sans Flex 'opsz'
+     * optical size axis) so longer titles (up to 32 characters) fit inside the widget without
+     * being cut off by "...".
+     */
+    internal fun fitTitleTextPaint(
+      paint: TextPaint,
+      context: Context,
+      title: String,
+      maxWidthPx: Float,
+      maxTextSizePx: Float,
+      minTextSizePx: Float,
+      widgetMinWidthDp: Int = 140,
+      widgetMinHeightDp: Int = 140
+    ): Float {
+      val len = title.trim().length
+      val lengthBasedStartPx = when {
+        len <= 12 -> maxTextSizePx
+        len <= 18 -> (maxTextSizePx * 0.85f)
+        len <= 24 -> (maxTextSizePx * 0.72f)
+        else -> (maxTextSizePx * 0.60f)
+      }.coerceIn(minTextSizePx, maxTextSizePx)
+
+      var candidateSizePx = lengthBasedStartPx
+      while (candidateSizePx >= minTextSizePx) {
+        paint.textSize = candidateSizePx
+        val baseSp = (candidateSizePx / 2.4f).coerceAtLeast(6f)
+        val opsz = computeWidgetOpticalSize(
+          baseSp = baseSp,
+          widgetMinWidthDp = widgetMinWidthDp,
+          widgetMinHeightDp = widgetMinHeightDp
+        )
+        applyGoogleSansFlex(paint, context, weight = 600, opticalSize = opsz)
+        if (paint.measureText(title) <= maxWidthPx || candidateSizePx == minTextSizePx) {
+          break
+        }
+        candidateSizePx = (candidateSizePx - 1f).coerceAtLeast(minTextSizePx)
+      }
+      return paint.textSize
+    }
+
     private fun createMidnightPendingIntent(context: Context): PendingIntent {
       val intent = Intent(context, DayCountWidgetProvider::class.java).apply {
         action = ACTION_MIDNIGHT_WIDGET_UPDATE
@@ -193,53 +269,59 @@ class DayCountWidgetProvider : AppWidgetProvider() {
     }
 
     /**
-     * Resolves widget colors for Canvas rendering, matching MaterialWidgetCard's resolveWidgetColors
-     * in the app so Device Dynamic (MUI) uses the real Android dynamic color palette on the home screen.
+     * Resolves widget colors for Canvas rendering using the exact Android Material You tonal
+     * palette (system_accent1_800 / system_accent1_100) used by first-party Google Pixel widgets.
      */
     fun resolveCanvasWidgetColors(
       context: Context,
-      themeColor: WidgetThemeColor
+      themeColor: WidgetThemeColor,
+      overrideIsDark: Boolean? = null
     ): CanvasWidgetColors {
       if (themeColor == WidgetThemeColor.DYNAMIC) {
-        val prefs = context.getSharedPreferences("daycount_app_prefs", Context.MODE_PRIVATE)
-        val savedThemeMode = prefs.getString("app_theme_mode", "SYSTEM") ?: "SYSTEM"
-        val isDark = when (savedThemeMode) {
-          "LIGHT" -> false
-          "DARK" -> true
-          else -> {
-            val nightModeFlags =
-              context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+        val isDark = overrideIsDark ?: run {
+          val prefs = context.getSharedPreferences("daycount_app_prefs", Context.MODE_PRIVATE)
+          val savedThemeMode = prefs.getString("app_theme_mode", "SYSTEM") ?: "SYSTEM"
+          when (savedThemeMode) {
+            "LIGHT" -> false
+            "DARK" -> true
+            else -> {
+              val nightModeFlags =
+                context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+              nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+            }
           }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          val cs = if (isDark) {
-            dynamicDarkColorScheme(context)
-          } else {
-            dynamicLightColorScheme(context)
-          }
+          val bgColor = ContextCompat.getColor(
+            context,
+            if (isDark) android.R.color.system_accent1_800 else android.R.color.system_accent1_100
+          )
+          val fgColor = ContextCompat.getColor(
+            context,
+            if (isDark) android.R.color.system_accent1_100 else android.R.color.system_accent1_800
+          )
           return CanvasWidgetColors(
-            primary = cs.primary.toArgb(),
-            surface = cs.surfaceVariant.toArgb(),
-            container = cs.primaryContainer.toArgb(),
-            onSurface = cs.onPrimaryContainer.toArgb()
+            primary = fgColor,
+            surface = bgColor,
+            container = bgColor,
+            onSurface = fgColor
           )
         } else {
-          // Pre-Android 12 fallback matching Theme.kt LightColorScheme / DarkColorScheme
+          // Pre-Android 12 fallback matching Pixel tonal surface + soft pastel foreground
           return if (isDark) {
             CanvasWidgetColors(
-              primary = 0xFF38BDF8.toInt(),
-              surface = 0xFF1E293B.toInt(),
-              container = 0xFF0C4A6E.toInt(),
-              onSurface = 0xFFE0F2FE.toInt()
+              primary = 0xFFD0E4FF.toInt(),
+              surface = 0xFF003258.toInt(),
+              container = 0xFF003258.toInt(),
+              onSurface = 0xFFD0E4FF.toInt()
             )
           } else {
             CanvasWidgetColors(
-              primary = 0xFF0284C7.toInt(),
-              surface = 0xFFF1F5F9.toInt(),
-              container = 0xFFE0F2FE.toInt(),
-              onSurface = 0xFF0369A1.toInt()
+              primary = 0xFF003258.toInt(),
+              surface = 0xFFD0E4FF.toInt(),
+              container = 0xFFD0E4FF.toInt(),
+              onSurface = 0xFF003258.toInt()
             )
           }
         }
@@ -287,8 +369,26 @@ class DayCountWidgetProvider : AppWidgetProvider() {
               first
             }
 
+            val options = try {
+              appWidgetManager.getAppWidgetOptions(appWidgetId)
+            } catch (_: Exception) {
+              null
+            }
+            val minWidthDp =
+              options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 140)?.takeIf { it > 0 }
+                ?: 140
+            val minHeightDp =
+              options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 140)?.takeIf { it > 0 }
+                ?: 140
+
             val views = RemoteViews(context.packageName, R.layout.widget_daycount)
-            val bitmap = renderWidgetBitmap(context, timer, nowMs)
+            val bitmap = renderWidgetBitmap(
+              context = context,
+              timer = timer,
+              now = nowMs,
+              widgetMinWidthDp = minWidthDp,
+              widgetMinHeightDp = minHeightDp
+            )
             views.setImageViewBitmap(R.id.widget_canvas_image, bitmap)
 
             // Open MainActivity on click
@@ -314,11 +414,14 @@ class DayCountWidgetProvider : AppWidgetProvider() {
     internal fun renderWidgetBitmap(
       context: Context,
       timer: CountdownTimer?,
-      now: Long = System.currentTimeMillis()
+      now: Long = System.currentTimeMillis(),
+      widgetMinWidthDp: Int = 140,
+      widgetMinHeightDp: Int = 140,
+      overrideIsDark: Boolean? = null
     ): Bitmap {
       if (timer == null) {
         val bitmap = Bitmap.createBitmap(520, 320, Bitmap.Config.ARGB_8888)
-        drawEmptyWidget(Canvas(bitmap), 520, 320)
+        drawEmptyWidget(context, Canvas(bitmap), 520, 320, overrideIsDark)
         return bitmap
       }
 
@@ -338,7 +441,11 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       val days = timer.daysRemaining(now)
       val isOverdue = timer.isCompleted(now)
       val progress = timer.progressFraction(now).coerceIn(0f, 1f)
-      val resolvedColors = resolveCanvasWidgetColors(context, timer.getResolvedTheme())
+      val resolvedColors = resolveCanvasWidgetColors(
+        context = context,
+        themeColor = timer.getResolvedTheme(),
+        overrideIsDark = overrideIsDark
+      )
       val opacityFraction = (timer.opacityPercent.coerceIn(0, 100) / 100f)
 
       val pad = 8f
@@ -350,41 +457,21 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         bottom = heightPx - pad
       )
 
-      // 1. Background Gradient Fill with Opacity
+      // 1. Solid Flat Background Fill with Opacity (No color gradient, no shape outline border)
       if (opacityFraction > 0f) {
         val bgAlpha = (opacityFraction * 255).toInt().coerceIn(0, 255)
-        val startColor = applyAlpha(resolvedColors.container, (bgAlpha * 0.92f).toInt())
-        val endColor = applyAlpha(resolvedColors.surface, bgAlpha)
-
         val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
           style = Paint.Style.FILL
-          shader = LinearGradient(
-            pad,
-            pad,
-            widthPx - pad,
-            heightPx - pad,
-            startColor,
-            endColor,
-            Shader.TileMode.CLAMP
-          )
+          color = applyAlpha(resolvedColors.surface, bgAlpha)
         }
         canvas.drawPath(shapePath, fillPaint)
       }
 
-      // 2. Crisp Shape Outline Border
-      val strokeAlpha = ((0.2f + 0.5f * opacityFraction) * 255).toInt().coerceIn(40, 220)
-      val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 4f
-        color = applyAlpha(resolvedColors.primary, strokeAlpha)
-      }
-      canvas.drawPath(shapePath, borderPaint)
-
       val isSymmetric = isRadialShape || shapeStyle == WidgetShapeStyle.PILL
       val maxTextWidth = when {
-        isRadialShape -> widthPx * 0.64f
-        shapeStyle == WidgetShapeStyle.PILL -> widthPx * 0.72f
-        else -> widthPx * 0.84f
+        isRadialShape -> widthPx * 0.68f
+        shapeStyle == WidgetShapeStyle.PILL -> widthPx * 0.76f
+        else -> widthPx * 0.88f
       }
       val cx = widthPx / 2f
       val cy = heightPx / 2f
@@ -399,21 +486,30 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       // Vertically center all content relative to cy so there is zero wasted vertical space
       val titleY = cy - (if (hasSubtitle) 92f else 78f)
       val subY = cy - 60f
-      val numberY = cy + 22f
-      val labelY = cy + 56f
+      val numberY = cy + 24f
+      val labelY = cy + 58f
       val barTop = cy + 76f
       val barBottom = cy + 88f
       val footerY = cy + 120f
 
-      // 3. Title
+      // 2. Title (Google Sans Flex, Roundness 100, auto-shrunk textSize + dynamic Optical Size)
+      val clampedTitle = CountdownDateUtils.sanitizeTitleInput(timer.title)
       val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = onSurfaceColor
-        textSize = if (isRadialShape) 34f else 36f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
       }
+      fitTitleTextPaint(
+        paint = titlePaint,
+        context = context,
+        title = clampedTitle,
+        maxWidthPx = maxTextWidth,
+        maxTextSizePx = if (isRadialShape) 34f else 36f,
+        minTextSizePx = if (isRadialShape) 16f else 17f,
+        widgetMinWidthDp = widgetMinWidthDp,
+        widgetMinHeightDp = widgetMinHeightDp
+      )
       val safeTitle = TextUtils.ellipsize(
-        timer.title,
+        clampedTitle,
         titlePaint,
         maxTextWidth,
         TextUtils.TruncateAt.END
@@ -422,11 +518,16 @@ class DayCountWidgetProvider : AppWidgetProvider() {
 
       // Optional Subtitle
       if (hasSubtitle) {
+        val subOpsz = computeWidgetOpticalSize(
+          baseSp = 11f,
+          widgetMinWidthDp = widgetMinWidthDp,
+          widgetMinHeightDp = widgetMinHeightDp
+        )
         val subPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-          color = applyAlpha(onSurfaceColor, 185)
+          color = applyAlpha(onSurfaceColor, 200)
           textSize = 23f
-          typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
           textAlign = Paint.Align.CENTER
+          applyGoogleSansFlex(this, context, weight = 500, opticalSize = subOpsz)
         }
         val safeSub = TextUtils.ellipsize(
           timer.subtitle,
@@ -437,43 +538,53 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         canvas.drawText(safeSub, cx, subY, subPaint)
       }
 
-      // 4. Big Days Number
+      // 3. Hero Days Number (Google Sans Flex, Roundness 100, high Optical Size matching Pixel Weather)
       val displayDays = abs(days).toString()
+      val numberOpsz = computeWidgetOpticalSize(
+        baseSp = 96f,
+        widgetMinWidthDp = widgetMinWidthDp,
+        widgetMinHeightDp = widgetMinHeightDp
+      )
       val numberPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = primaryColor
         textSize = when {
-          displayDays.length >= 4 -> 88f
-          isRadialShape -> 104f
-          else -> 108f
+          displayDays.length >= 4 -> 90f
+          isRadialShape -> 108f
+          else -> 112f
         }
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
+        applyGoogleSansFlex(this, context, weight = 500, opticalSize = numberOpsz)
       }
       canvas.drawText(displayDays, cx, numberY, numberPaint)
 
-      // 5. Days Label
+      // 4. Days Label
       val daysLabel = when {
         isOverdue && abs(days) == 0L -> "TODAY IS THE DAY!"
         isOverdue -> "DAYS AGO"
         abs(days) == 1L -> "DAY REMAINING"
         else -> "DAYS REMAINING"
       }
+      val labelOpsz = computeWidgetOpticalSize(
+        baseSp = 11f,
+        widgetMinWidthDp = widgetMinWidthDp,
+        widgetMinHeightDp = widgetMinHeightDp
+      )
       val labelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = applyAlpha(onSurfaceColor, 220)
+        color = applyAlpha(onSurfaceColor, 225)
         textSize = 22f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        letterSpacing = 0.08f
+        letterSpacing = 0.06f
         textAlign = Paint.Align.CENTER
+        applyGoogleSansFlex(this, context, weight = 600, opticalSize = labelOpsz)
       }
       canvas.drawText(daysLabel, cx, labelY, labelPaint)
 
-      // 6. Progress Bar
+      // 5. Progress Bar
       val barWidth = maxTextWidth * 0.88f
       val barLeft = cx - barWidth / 2f
       val barRight = cx + barWidth / 2f
       val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = applyAlpha(onSurfaceColor, 50)
+        color = applyAlpha(onSurfaceColor, 55)
       }
       canvas.drawRoundRect(RectF(barLeft, barTop, barRight, barBottom), 6f, 6f, trackPaint)
 
@@ -487,13 +598,18 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         canvas.drawRoundRect(RectF(barLeft, barTop, fillRight, barBottom), 6f, 6f, progressPaint)
       }
 
-      // 7. Optional Countdown Date / Fraction of Days Completed Footer
+      // 6. Optional Countdown Date / Fraction of Days Completed Footer
       if (hasFooter) {
+        val footerOpsz = computeWidgetOpticalSize(
+          baseSp = 11f,
+          widgetMinWidthDp = widgetMinWidthDp,
+          widgetMinHeightDp = widgetMinHeightDp
+        )
         val footerPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-          color = applyAlpha(onSurfaceColor, 195)
+          color = applyAlpha(onSurfaceColor, 205)
           textSize = 22f
-          typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
           textAlign = Paint.Align.CENTER
+          applyGoogleSansFlex(this, context, weight = 500, opticalSize = footerOpsz)
         }
         val safeFooter = TextUtils.ellipsize(
           footerText,
@@ -507,26 +623,35 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       return bitmap
     }
 
-    private fun drawEmptyWidget(canvas: Canvas, widthPx: Int, heightPx: Int) {
+    private fun drawEmptyWidget(
+      context: Context,
+      canvas: Canvas,
+      widthPx: Int,
+      heightPx: Int,
+      overrideIsDark: Boolean? = null
+    ) {
       val pad = 8f
       val rect = RectF(pad, pad, widthPx - pad, heightPx - pad)
+      val colors = resolveCanvasWidgetColors(context, WidgetThemeColor.DYNAMIC, overrideIsDark)
       val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF0F172A.toInt()
+        style = Paint.Style.FILL
+        color = colors.surface
       }
       canvas.drawRoundRect(rect, 64f, 64f, bgPaint)
 
       val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFFF8FAFC.toInt()
+        color = colors.onSurface
         textSize = 38f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         textAlign = Paint.Align.CENTER
+        applyGoogleSansFlex(this, context, weight = 600, opticalSize = 22f)
       }
       canvas.drawText("DayCount", widthPx / 2f, heightPx / 2f - 8f, titlePaint)
 
       val subPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF94A3B8.toInt()
+        color = applyAlpha(colors.onSurface, 200)
         textSize = 24f
         textAlign = Paint.Align.CENTER
+        applyGoogleSansFlex(this, context, weight = 500, opticalSize = 12f)
       }
       canvas.drawText("Tap to create countdown", widthPx / 2f, heightPx / 2f + 32f, subPaint)
     }

@@ -3,10 +3,9 @@ package com.example
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
+import android.text.TextPaint
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
+import androidx.core.content.ContextCompat
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.CountdownDateUtils
 import com.example.data.CountdownMode
@@ -15,6 +14,8 @@ import com.example.data.DateDisplayMode
 import com.example.data.WidgetShapeStyle
 import com.example.data.WidgetThemeColor
 import com.example.ui.components.WallpaperTheme
+import com.example.ui.theme.buildGoogleSansFlexVariationSettings
+import com.example.ui.theme.computeWidgetOpticalSize
 import com.example.widget.DayCountWidgetProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,6 +75,43 @@ class ExampleRobolectricTest {
   }
 
   @Test
+  fun `widget title enforces 32 character limit and shrinks font size for long titles`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val overlongTitle = "Annual International Software Engineering Summit"
+    val sanitized = CountdownDateUtils.sanitizeTitleInput(overlongTitle)
+    assertEquals(32, sanitized.length)
+    assertEquals("Annual International Software En", sanitized)
+
+    // Verify adaptive Compose font size shrinks for long titles
+    val shortSp = CountdownDateUtils.adaptiveTitleFontSizeSp("Vacation", isSymmetricShape = true)
+    val longSp = CountdownDateUtils.adaptiveTitleFontSizeSp(sanitized, isSymmetricShape = true)
+    assertTrue("Expected smaller sp for 32-char title", longSp < shortSp)
+
+    // Verify Home Screen canvas fitTitleTextPaint shrinks textSize for long titles to fit
+    val shortPaint = TextPaint()
+    val shortSizePx = DayCountWidgetProvider.fitTitleTextPaint(
+      paint = shortPaint,
+      context = context,
+      title = "Last Day",
+      maxWidthPx = 312f,
+      maxTextSizePx = 34f,
+      minTextSizePx = 16f
+    )
+    assertEquals(34f, shortSizePx, 0.01f)
+
+    val longPaint = TextPaint()
+    val longSizePx = DayCountWidgetProvider.fitTitleTextPaint(
+      paint = longPaint,
+      context = context,
+      title = sanitized,
+      maxWidthPx = 312f,
+      maxTextSizePx = 34f,
+      minTextSizePx = 16f
+    )
+    assertTrue("Expected smaller canvas textSize for 32-char title", longSizePx < shortSizePx)
+  }
+
+  @Test
   fun `home screen widget uses compact vertical bounding box for horizontal shapes`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val squircleTimer = CountdownTimer(
@@ -95,21 +133,45 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `home screen widget resolves device dynamic MUI color scheme`() {
+  fun `home screen widget resolves Google Pixel device dynamic MUI tonal color scheme`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val prefs = context.getSharedPreferences("daycount_app_prefs", Context.MODE_PRIVATE)
 
+    val accent100 = ContextCompat.getColor(context, android.R.color.system_accent1_100)
+    val accent800 = ContextCompat.getColor(context, android.R.color.system_accent1_800)
+
     prefs.edit().putString("app_theme_mode", "LIGHT").commit()
-    val lightDynamic = dynamicLightColorScheme(context)
     val resolvedLight = DayCountWidgetProvider.resolveCanvasWidgetColors(context, WidgetThemeColor.DYNAMIC)
-    assertEquals(lightDynamic.primary.toArgb(), resolvedLight.primary)
-    assertEquals(lightDynamic.primaryContainer.toArgb(), resolvedLight.container)
+    assertEquals(accent800, resolvedLight.primary)
+    assertEquals(accent100, resolvedLight.surface)
+    assertEquals(accent100, resolvedLight.container)
+    assertEquals(accent800, resolvedLight.onSurface)
 
     prefs.edit().putString("app_theme_mode", "DARK").commit()
-    val darkDynamic = dynamicDarkColorScheme(context)
     val resolvedDark = DayCountWidgetProvider.resolveCanvasWidgetColors(context, WidgetThemeColor.DYNAMIC)
-    assertEquals(darkDynamic.primary.toArgb(), resolvedDark.primary)
-    assertEquals(darkDynamic.primaryContainer.toArgb(), resolvedDark.container)
+    assertEquals(accent100, resolvedDark.primary)
+    assertEquals(accent800, resolvedDark.surface)
+    assertEquals(accent800, resolvedDark.container)
+    assertEquals(accent100, resolvedDark.onSurface)
+  }
+
+  @Test
+  fun `google sans flex applies roundness 100 and adapts optical size when widget is resized`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val smallOpsz = computeWidgetOpticalSize(baseSp = 14f, widgetMinWidthDp = 90, widgetMinHeightDp = 90)
+    val normalOpsz = computeWidgetOpticalSize(baseSp = 14f, widgetMinWidthDp = 140, widgetMinHeightDp = 140)
+    val largeOpsz = computeWidgetOpticalSize(baseSp = 96f, widgetMinWidthDp = 280, widgetMinHeightDp = 280)
+
+    assertTrue("Expected smaller opsz when widget is shrunk", smallOpsz < normalOpsz)
+    assertEquals(14f, normalOpsz, 0.01f)
+    assertEquals(144f, largeOpsz, 0.01f)
+
+    val variationStr = buildGoogleSansFlexVariationSettings(opticalSize = 96f, weight = 500)
+    assertEquals("'ROND' 100.0, 'opsz' 96.0, 'wght' 500", variationStr)
+
+    val paint = TextPaint()
+    DayCountWidgetProvider.applyGoogleSansFlex(paint, context, weight = 500, opticalSize = 96f)
+    assertNotNull(paint.typeface)
   }
 
   @Test

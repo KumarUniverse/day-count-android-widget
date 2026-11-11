@@ -1,6 +1,0 @@
-{
-  "summary":  "Implementation plan for automatic daily midnight updates (00:00:00) for all home screen countdown widgets and in-app countdown views so days remaining decrease by 1 and the progress bar updates immediately after midnight.",
-  "updatedAt":  "2026-11-08T12:57:23.454605522Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

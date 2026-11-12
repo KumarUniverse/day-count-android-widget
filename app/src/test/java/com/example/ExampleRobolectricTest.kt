@@ -138,6 +138,8 @@ class ExampleRobolectricTest {
 
     val accent1_100 = ContextCompat.getColor(context, android.R.color.system_accent1_100)
     val accent1_800 = ContextCompat.getColor(context, android.R.color.system_accent1_800)
+    val accent2_50 = ContextCompat.getColor(context, android.R.color.system_accent2_50)
+    val accent2_800 = ContextCompat.getColor(context, android.R.color.system_accent2_800)
     val accent3_100 = ContextCompat.getColor(context, android.R.color.system_accent3_100)
     val accent3_800 = ContextCompat.getColor(context, android.R.color.system_accent3_800)
 
@@ -147,8 +149,8 @@ class ExampleRobolectricTest {
       overrideIsDark = false
     )
     assertEquals(accent1_800, resolvedLight.primary)
-    assertEquals(accent1_100, resolvedLight.surface)
-    assertEquals(accent1_100, resolvedLight.container)
+    assertEquals(accent2_50, resolvedLight.surface)
+    assertEquals(accent2_50, resolvedLight.container)
     assertEquals(accent1_800, resolvedLight.onSurface)
     assertEquals(accent3_800, resolvedLight.titleColor)
     assertEquals(accent1_800, resolvedLight.footerColor)
@@ -159,8 +161,8 @@ class ExampleRobolectricTest {
       overrideIsDark = true
     )
     assertEquals(accent1_100, resolvedDark.primary)
-    assertEquals(accent1_800, resolvedDark.surface)
-    assertEquals(accent1_800, resolvedDark.container)
+    assertEquals(accent2_800, resolvedDark.surface)
+    assertEquals(accent2_800, resolvedDark.container)
     assertEquals(accent1_100, resolvedDark.onSurface)
     assertEquals(accent3_100, resolvedDark.titleColor)
     assertEquals(accent1_100, resolvedDark.footerColor)

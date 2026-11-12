@@ -273,7 +273,7 @@ class DayCountWidgetProvider : AppWidgetProvider() {
 
     /**
      * Resolves widget colors for Canvas rendering using the Android Material You tonal palettes:
-     * - Surface / Background: system_accent1_800 (Dark) / system_accent1_100 (Light)
+     * - Surface / Background: system_accent2_800 (Dark) / system_accent2_50 (Light)
      * - Primary / Hero Number / Ending Date: system_accent1_100 (Dark) / system_accent1_800 (Light)
      * - Title & Active Progress Bar Fill: Tertiary warm accent system_accent3_100 (Dark) / system_accent3_800 (Light)
      */
@@ -292,7 +292,7 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
           val bgColor = ContextCompat.getColor(
             context,
-            if (isDark) android.R.color.system_accent1_800 else android.R.color.system_accent1_100
+            if (isDark) android.R.color.system_accent2_800 else android.R.color.system_accent2_50
           )
           val fgColor = ContextCompat.getColor(
             context,

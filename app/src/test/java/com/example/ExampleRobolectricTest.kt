@@ -135,24 +135,35 @@ class ExampleRobolectricTest {
   @Test
   fun `home screen widget resolves Google Pixel device dynamic MUI tonal color scheme`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val prefs = context.getSharedPreferences("daycount_app_prefs", Context.MODE_PRIVATE)
 
-    val accent100 = ContextCompat.getColor(context, android.R.color.system_accent1_100)
-    val accent800 = ContextCompat.getColor(context, android.R.color.system_accent1_800)
+    val accent1_100 = ContextCompat.getColor(context, android.R.color.system_accent1_100)
+    val accent1_800 = ContextCompat.getColor(context, android.R.color.system_accent1_800)
+    val accent3_100 = ContextCompat.getColor(context, android.R.color.system_accent3_100)
+    val accent3_800 = ContextCompat.getColor(context, android.R.color.system_accent3_800)
 
-    prefs.edit().putString("app_theme_mode", "LIGHT").commit()
-    val resolvedLight = DayCountWidgetProvider.resolveCanvasWidgetColors(context, WidgetThemeColor.DYNAMIC)
-    assertEquals(accent800, resolvedLight.primary)
-    assertEquals(accent100, resolvedLight.surface)
-    assertEquals(accent100, resolvedLight.container)
-    assertEquals(accent800, resolvedLight.onSurface)
+    val resolvedLight = DayCountWidgetProvider.resolveCanvasWidgetColors(
+      context = context,
+      themeColor = WidgetThemeColor.DYNAMIC,
+      overrideIsDark = false
+    )
+    assertEquals(accent1_800, resolvedLight.primary)
+    assertEquals(accent1_100, resolvedLight.surface)
+    assertEquals(accent1_100, resolvedLight.container)
+    assertEquals(accent1_800, resolvedLight.onSurface)
+    assertEquals(accent3_800, resolvedLight.titleColor)
+    assertEquals(accent1_800, resolvedLight.footerColor)
 
-    prefs.edit().putString("app_theme_mode", "DARK").commit()
-    val resolvedDark = DayCountWidgetProvider.resolveCanvasWidgetColors(context, WidgetThemeColor.DYNAMIC)
-    assertEquals(accent100, resolvedDark.primary)
-    assertEquals(accent800, resolvedDark.surface)
-    assertEquals(accent800, resolvedDark.container)
-    assertEquals(accent100, resolvedDark.onSurface)
+    val resolvedDark = DayCountWidgetProvider.resolveCanvasWidgetColors(
+      context = context,
+      themeColor = WidgetThemeColor.DYNAMIC,
+      overrideIsDark = true
+    )
+    assertEquals(accent1_100, resolvedDark.primary)
+    assertEquals(accent1_800, resolvedDark.surface)
+    assertEquals(accent1_800, resolvedDark.container)
+    assertEquals(accent1_100, resolvedDark.onSurface)
+    assertEquals(accent3_100, resolvedDark.titleColor)
+    assertEquals(accent1_100, resolvedDark.footerColor)
   }
 
   @Test

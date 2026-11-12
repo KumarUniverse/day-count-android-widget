@@ -5,6 +5,13 @@
     android:layout_height="match_parent">
 
     <ImageView
+        android:id="@+id/widget_bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
+
+    <ImageView
         android:id="@+id/widget_canvas_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

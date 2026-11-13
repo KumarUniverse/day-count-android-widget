@@ -155,7 +155,7 @@ class CountdownViewModel(application: Application) : AndroidViewModel(applicatio
   }
 
   fun setSearchQuery(query: String) {
-    _searchQuery.value = query
+    _searchQuery.value = CountdownDateUtils.sanitizeSearchQuery(query)
   }
 
   fun showCreateDialog() {

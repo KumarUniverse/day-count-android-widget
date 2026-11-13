@@ -68,6 +68,8 @@ enum class WidgetThemeColor(
 
 object CountdownDateUtils {
   const val MAX_TITLE_LENGTH = 32
+  const val MAX_SUBTITLE_LENGTH = 80
+  const val MAX_SEARCH_QUERY_LENGTH = 100
   const val MIN_SPECIFIED_DAYS = 1
   const val MAX_SPECIFIED_DAYS = 36500
 
@@ -76,6 +78,21 @@ object CountdownDateUtils {
    */
   fun sanitizeTitleInput(rawInput: String): String {
     return rawInput.take(MAX_TITLE_LENGTH)
+  }
+
+  /**
+   * Enforces the maximum 80-character limit on optional widget subtitles to prevent
+   * oversized SQLite CursorWindow rows or canvas measurement stalls.
+   */
+  fun sanitizeSubtitleInput(rawInput: String): String {
+    return rawInput.take(MAX_SUBTITLE_LENGTH)
+  }
+
+  /**
+   * Enforces the maximum 100-character limit on search queries.
+   */
+  fun sanitizeSearchQuery(rawInput: String): String {
+    return rawInput.take(MAX_SEARCH_QUERY_LENGTH)
   }
 
   /**

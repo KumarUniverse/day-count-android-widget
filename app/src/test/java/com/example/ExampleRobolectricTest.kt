@@ -17,9 +17,11 @@ import com.example.ui.components.WallpaperTheme
 import com.example.ui.theme.buildGoogleSansFlexVariationSettings
 import com.example.ui.theme.computeWidgetOpticalSize
 import com.example.widget.DayCountWidgetProvider
+import com.example.widget.MidnightWidgetAlarmReceiver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -408,7 +410,11 @@ class ExampleRobolectricTest {
     assertNotNull("Expected midnight widget alarm to be scheduled", nextAlarm)
     assertEquals(expectedTriggerMs, nextAlarm!!.triggerAtTime)
 
-    // Receiving ACTION_MIDNIGHT_WIDGET_UPDATE reschedules the next midnight alarm
+    // Clear alarms to test broadcast behavior
+    DayCountWidgetProvider.cancelMidnightUpdate(context)
+    assertNull(shadowAlarmManager.nextScheduledAlarm)
+
+    // Spoofed ACTION_MIDNIGHT_WIDGET_UPDATE sent to exported DayCountWidgetProvider is ignored
     val provider = DayCountWidgetProvider()
     provider.onReceive(
       context,
@@ -416,6 +422,27 @@ class ExampleRobolectricTest {
         action = DayCountWidgetProvider.ACTION_MIDNIGHT_WIDGET_UPDATE
       }
     )
-    assertNotNull(shadowAlarmManager.nextScheduledAlarm)
+    assertNull("Exported receiver must ignore spoofed custom action", shadowAlarmManager.nextScheduledAlarm)
+
+    // Internal non-exported MidnightWidgetAlarmReceiver reschedules the next midnight alarm
+    val internalAlarmReceiver = MidnightWidgetAlarmReceiver()
+    internalAlarmReceiver.onReceive(
+      context,
+      Intent(context, MidnightWidgetAlarmReceiver::class.java).apply {
+        action = DayCountWidgetProvider.ACTION_MIDNIGHT_WIDGET_UPDATE
+      }
+    )
+    assertNotNull("Internal alarm receiver must reschedule alarm", shadowAlarmManager.nextScheduledAlarm)
+  }
+
+  @Test
+  fun `subtitle and search query inputs enforce maximum length bounds`() {
+    val longSubtitle = "A".repeat(500)
+    val sanitizedSub = CountdownDateUtils.sanitizeSubtitleInput(longSubtitle)
+    assertEquals(CountdownDateUtils.MAX_SUBTITLE_LENGTH, sanitizedSub.length)
+
+    val longQuery = "B".repeat(500)
+    val sanitizedQuery = CountdownDateUtils.sanitizeSearchQuery(longQuery)
+    assertEquals(CountdownDateUtils.MAX_SEARCH_QUERY_LENGTH, sanitizedQuery.length)
   }
 }

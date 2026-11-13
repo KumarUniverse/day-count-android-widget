@@ -113,7 +113,9 @@ fun CreateEditTimerDialog(
   var title by remember {
     mutableStateOf(CountdownDateUtils.sanitizeTitleInput(initialTimer?.title ?: ""))
   }
-  var subtitle by remember { mutableStateOf(initialTimer?.subtitle ?: "") }
+  var subtitle by remember {
+    mutableStateOf(CountdownDateUtils.sanitizeSubtitleInput(initialTimer?.subtitle ?: ""))
+  }
   var mode by remember { mutableStateOf(initialTimer?.getResolvedMode() ?: CountdownMode.TARGET_DATE) }
 
   var targetDateEpochMs by remember {
@@ -326,10 +328,10 @@ fun CreateEditTimerDialog(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Subtitle / Note (left blank by default)
+        // Subtitle / Note (left blank by default, capped to 80 chars)
         OutlinedTextField(
           value = subtitle,
-          onValueChange = { subtitle = it },
+          onValueChange = { subtitle = CountdownDateUtils.sanitizeSubtitleInput(it) },
           label = { Text("Optional Subtitle") },
           singleLine = true,
           modifier = Modifier.fillMaxWidth(),
@@ -1158,7 +1160,7 @@ fun CreateEditTimerDialog(
               val timer = CountdownTimer(
                 id = initialTimer?.id ?: 0L,
                 title = CountdownDateUtils.sanitizeTitleInput(title.trim()),
-                subtitle = subtitle.trim(),
+                subtitle = CountdownDateUtils.sanitizeSubtitleInput(subtitle.trim()),
                 mode = mode.name,
                 targetDateEpochMs = targetDateEpochMs,
                 targetDaysTotal = sanitizedDays,

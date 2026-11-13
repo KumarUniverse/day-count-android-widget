@@ -51,6 +51,14 @@ data class CanvasWidgetColors(
   val footerColor: Int = onSurface
 )
 
+class MidnightWidgetAlarmReceiver : BroadcastReceiver() {
+  override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action == DayCountWidgetProvider.ACTION_MIDNIGHT_WIDGET_UPDATE) {
+      DayCountWidgetProvider.handleMidnightOrSystemRefresh(context, goAsync())
+    }
+  }
+}
+
 class DayCountWidgetProvider : AppWidgetProvider() {
 
   override fun onReceive(context: Context, intent: Intent) {
@@ -60,20 +68,17 @@ class DayCountWidgetProvider : AppWidgetProvider() {
     }
 
     when (action) {
-      ACTION_MIDNIGHT_WIDGET_UPDATE,
       Intent.ACTION_DATE_CHANGED,
       Intent.ACTION_TIME_CHANGED,
       Intent.ACTION_TIMEZONE_CHANGED,
       Intent.ACTION_BOOT_COMPLETED,
       Intent.ACTION_MY_PACKAGE_REPLACED,
       Intent.ACTION_CONFIGURATION_CHANGED -> {
-        scheduleNextMidnightUpdate(context)
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val thisWidget = ComponentName(context, DayCountWidgetProvider::class.java)
-        val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
-        if (allWidgetIds.isNotEmpty()) {
-          updateWidgetsInternal(context, appWidgetManager, allWidgetIds, goAsync())
-        }
+        handleMidnightOrSystemRefresh(context, goAsync())
+      }
+      ACTION_MIDNIGHT_WIDGET_UPDATE -> {
+        // Ignore custom action on the exported receiver to prevent external broadcast spoofing;
+        // legitimate midnight alarms are delivered to the non-exported MidnightWidgetAlarmReceiver.
       }
       else -> {
         super.onReceive(context, intent)
@@ -198,8 +203,23 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       return paint.textSize
     }
 
+    internal fun handleMidnightOrSystemRefresh(
+      context: Context,
+      pendingResult: BroadcastReceiver.PendingResult? = null
+    ) {
+      scheduleNextMidnightUpdate(context)
+      val appWidgetManager = AppWidgetManager.getInstance(context)
+      val thisWidget = ComponentName(context, DayCountWidgetProvider::class.java)
+      val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
+      if (allWidgetIds.isNotEmpty()) {
+        updateWidgetsInternal(context, appWidgetManager, allWidgetIds, pendingResult)
+      } else {
+        pendingResult?.finish()
+      }
+    }
+
     private fun createMidnightPendingIntent(context: Context): PendingIntent {
-      val intent = Intent(context, DayCountWidgetProvider::class.java).apply {
+      val intent = Intent(context, MidnightWidgetAlarmReceiver::class.java).apply {
         action = ACTION_MIDNIGHT_WIDGET_UPDATE
       }
       return PendingIntent.getBroadcast(
@@ -433,6 +453,8 @@ class DayCountWidgetProvider : AppWidgetProvider() {
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
           }
+        } catch (_: Exception) {
+          // Safeguard background broadcast execution against unexpected I/O or OOM exceptions
         } finally {
           pendingResult?.finish()
         }
@@ -603,8 +625,9 @@ class DayCountWidgetProvider : AppWidgetProvider() {
           textAlign = Paint.Align.CENTER
           applyGoogleSansFlex(this, context, weight = 500, opticalSize = subOpsz)
         }
+        val clampedSubtitle = CountdownDateUtils.sanitizeSubtitleInput(timer.subtitle)
         val safeSub = TextUtils.ellipsize(
-          timer.subtitle,
+          clampedSubtitle,
           subPaint,
           maxTextWidth,
           TextUtils.TruncateAt.END

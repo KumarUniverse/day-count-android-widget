@@ -249,7 +249,7 @@ fun CountdownAppScreen(
           OutlinedTextField(
             value = searchQuery,
             onValueChange = { viewModel.setSearchQuery(it) },
-            placeholder = { Text("Search by label or note...") },
+            placeholder = { Text("Search by widget label...") },
             trailingIcon = {
               if (searchQuery.isNotEmpty()) {
                 IconButton(onClick = { viewModel.setSearchQuery("") }) {

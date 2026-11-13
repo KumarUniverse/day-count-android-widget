@@ -575,13 +575,11 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       val titleColor = resolvedColors.titleColor
       val footerColor = resolvedColors.footerColor
 
-      val hasSubtitle = timer.subtitle.isNotBlank()
       val footerText = timer.formattedCountdownFooter(nowMs = now, compact = isSymmetric)
       val hasFooter = footerText.isNotBlank()
 
       // Vertically center all content relative to cy so there is zero wasted vertical space
-      val titleY = cy - (if (hasSubtitle) 92f else 78f)
-      val subY = cy - 60f
+      val titleY = cy - 78f
       val numberY = cy + 24f
       val labelY = cy + 58f
       val barTop = cy + 76f
@@ -612,29 +610,6 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       ).toString()
       canvas.drawText(safeTitle, cx, titleY, titlePaint)
 
-      // Optional Subtitle
-      if (hasSubtitle) {
-        val subOpsz = computeWidgetOpticalSize(
-          baseSp = 11f,
-          widgetMinWidthDp = widgetMinWidthDp,
-          widgetMinHeightDp = widgetMinHeightDp
-        )
-        val subPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-          color = applyAlpha(titleColor, 215)
-          textSize = 23f
-          textAlign = Paint.Align.CENTER
-          applyGoogleSansFlex(this, context, weight = 500, opticalSize = subOpsz)
-        }
-        val clampedSubtitle = CountdownDateUtils.sanitizeSubtitleInput(timer.subtitle)
-        val safeSub = TextUtils.ellipsize(
-          clampedSubtitle,
-          subPaint,
-          maxTextWidth,
-          TextUtils.TruncateAt.END
-        ).toString()
-        canvas.drawText(safeSub, cx, subY, subPaint)
-      }
-
       // 3. Hero Days Number (Google Sans Flex, Roundness 100, high Optical Size, Primary accent)
       val displayDays = abs(days).toString()
       val numberOpsz = computeWidgetOpticalSize(
@@ -655,12 +630,7 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       canvas.drawText(displayDays, cx, numberY, numberPaint)
 
       // 4. Days Label
-      val daysLabel = when {
-        isOverdue && abs(days) == 0L -> "TODAY IS THE DAY!"
-        isOverdue -> "DAYS AGO"
-        abs(days) == 1L -> "DAY REMAINING"
-        else -> "DAYS REMAINING"
-      }
+      val daysLabel = resolveDaysLabel(days = days, isOverdue = isOverdue)
       val labelOpsz = computeWidgetOpticalSize(
         baseSp = 11f,
         widgetMinWidthDp = widgetMinWidthDp,
@@ -845,6 +815,16 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         }
       }
       return path
+    }
+
+    internal fun resolveDaysLabel(days: Long, isOverdue: Boolean): String {
+      return when {
+        isOverdue && abs(days) == 0L -> "TODAY IS THE DAY!"
+        isOverdue && abs(days) == 1L -> "DAY AGO"
+        isOverdue -> "DAYS AGO"
+        abs(days) == 1L -> "DAY REMAINING"
+        else -> "DAYS REMAINING"
+      }
     }
 
     private fun applyAlpha(color: Int, alpha: Int): Int {

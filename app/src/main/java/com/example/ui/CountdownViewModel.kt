@@ -121,8 +121,7 @@ class CountdownViewModel(application: Application) : AndroidViewModel(applicatio
 
     if (query.isNotBlank()) {
       filtered = filtered.filter {
-        it.title.contains(query, ignoreCase = true) ||
-          it.subtitle.contains(query, ignoreCase = true)
+        it.title.contains(query, ignoreCase = true)
       }
     }
 

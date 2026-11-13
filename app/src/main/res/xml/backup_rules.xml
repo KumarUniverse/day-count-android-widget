@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <include domain="database" path="countdown_timer_database" />
-    <include domain="sharedpref" path="daycount_app_prefs.xml" />
+    <include domain="database" path="." />
+    <include domain="sharedpref" path="." />
     <exclude domain="sharedpref" path="daycount_widget_prefs.xml" />
 </full-backup-content>

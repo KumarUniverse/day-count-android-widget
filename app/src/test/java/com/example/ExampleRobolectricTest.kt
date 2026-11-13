@@ -445,4 +445,54 @@ class ExampleRobolectricTest {
     val sanitizedQuery = CountdownDateUtils.sanitizeSearchQuery(longQuery)
     assertEquals(CountdownDateUtils.MAX_SEARCH_QUERY_LENGTH, sanitizedQuery.length)
   }
+
+  @Test
+  fun `countdown reaches 0 on target day with TODAY IS THE DAY and counts up with DAY AGO and DAYS AGO after`() {
+    val startMs = 1_762_600_000_000L
+    val targetMs = CountdownDateUtils.addLocalCalendarDays(startMs, 10)
+    val timer = CountdownTimer(
+      title = "Launch Day",
+      mode = CountdownMode.TARGET_DATE.name,
+      startDateEpochMs = startMs,
+      targetDateEpochMs = targetMs
+    )
+
+    // 1 day before target date
+    val oneDayBefore = CountdownDateUtils.addLocalCalendarDays(targetMs, -1)
+    assertEquals(1L, timer.daysRemaining(oneDayBefore))
+    assertFalse(timer.isCompleted(oneDayBefore))
+    assertEquals(
+      "DAY REMAINING",
+      DayCountWidgetProvider.resolveDaysLabel(timer.daysRemaining(oneDayBefore), timer.isCompleted(oneDayBefore))
+    )
+
+    // On target date itself -> 0 and "TODAY IS THE DAY!" with 100% progress
+    assertEquals(0L, timer.daysRemaining(targetMs))
+    assertTrue(timer.isCompleted(targetMs))
+    assertEquals(1.0f, timer.progressFraction(targetMs), 0.001f)
+    assertEquals(
+      "TODAY IS THE DAY!",
+      DayCountWidgetProvider.resolveDaysLabel(timer.daysRemaining(targetMs), timer.isCompleted(targetMs))
+    )
+
+    // 1 day after target date -> -1 (displayed as 1) and "DAY AGO"
+    val oneDayAfter = CountdownDateUtils.addLocalCalendarDays(targetMs, 1)
+    assertEquals(-1L, timer.daysRemaining(oneDayAfter))
+    assertTrue(timer.isCompleted(oneDayAfter))
+    assertEquals(1.0f, timer.progressFraction(oneDayAfter), 0.001f)
+    assertEquals(
+      "DAY AGO",
+      DayCountWidgetProvider.resolveDaysLabel(timer.daysRemaining(oneDayAfter), timer.isCompleted(oneDayAfter))
+    )
+
+    // 5 days after target date -> -5 (displayed as 5) and "DAYS AGO"
+    val fiveDaysAfter = CountdownDateUtils.addLocalCalendarDays(targetMs, 5)
+    assertEquals(-5L, timer.daysRemaining(fiveDaysAfter))
+    assertTrue(timer.isCompleted(fiveDaysAfter))
+    assertEquals(1.0f, timer.progressFraction(fiveDaysAfter), 0.001f)
+    assertEquals(
+      "DAYS AGO",
+      DayCountWidgetProvider.resolveDaysLabel(timer.daysRemaining(fiveDaysAfter), timer.isCompleted(fiveDaysAfter))
+    )
+  }
 }

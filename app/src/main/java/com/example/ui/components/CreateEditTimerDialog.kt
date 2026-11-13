@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +38,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -60,6 +63,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +94,7 @@ import com.example.data.DateDisplayMode
 import com.example.data.WidgetShapeStyle
 import com.example.data.WidgetThemeColor
 import com.example.widget.DayCountWidgetProvider
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -110,11 +115,11 @@ fun CreateEditTimerDialog(
   val cs = MaterialTheme.colorScheme
   val focusManager = LocalFocusManager.current
 
+  val scrollState = rememberScrollState()
+  val coroutineScope = rememberCoroutineScope()
+
   var title by remember {
     mutableStateOf(CountdownDateUtils.sanitizeTitleInput(initialTimer?.title ?: ""))
-  }
-  var subtitle by remember {
-    mutableStateOf(CountdownDateUtils.sanitizeSubtitleInput(initialTimer?.subtitle ?: ""))
   }
   var mode by remember { mutableStateOf(initialTimer?.getResolvedMode() ?: CountdownMode.TARGET_DATE) }
 
@@ -144,9 +149,11 @@ fun CreateEditTimerDialog(
   }
   val daysFocusRequester = remember { FocusRequester() }
 
-  // Required Starting Date for "Specified Days" mode
+  // Required Starting Date for "Specified Days" mode (defaults to Today so Create Widget works immediately)
   var startDateEpochMs by remember {
-    mutableStateOf<Long?>(initialTimer?.startDateEpochMs)
+    mutableStateOf<Long?>(
+      initialTimer?.startDateEpochMs ?: CountdownDateUtils.addLocalCalendarDays(now, 0)
+    )
   }
 
   var selectedColorId by remember {
@@ -193,7 +200,9 @@ fun CreateEditTimerDialog(
     Surface(
       modifier = Modifier
         .fillMaxWidth(0.95f)
-        .padding(vertical = 24.dp)
+        .navigationBarsPadding()
+        .imePadding()
+        .padding(top = 24.dp, bottom = 36.dp)
         .testTag("create_edit_timer_dialog"),
       shape = RoundedCornerShape(28.dp),
       color = cs.surface,
@@ -201,11 +210,15 @@ fun CreateEditTimerDialog(
       tonalElevation = 8.dp
     ) {
       Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .verticalScroll(rememberScrollState())
-          .padding(20.dp)
+        modifier = Modifier.fillMaxWidth()
       ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f, fill = false)
+            .verticalScroll(scrollState)
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+        ) {
         // Dialog Header
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -326,26 +339,7 @@ fun CreateEditTimerDialog(
           )
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Subtitle / Note (left blank by default, capped to 80 chars)
-        OutlinedTextField(
-          value = subtitle,
-          onValueChange = { subtitle = CountdownDateUtils.sanitizeSubtitleInput(it) },
-          label = { Text("Optional Subtitle") },
-          singleLine = true,
-          modifier = Modifier.fillMaxWidth(),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = cs.primary,
-            unfocusedBorderColor = cs.outline,
-            focusedTextColor = cs.onSurface,
-            unfocusedTextColor = cs.onSurface,
-            focusedContainerColor = cs.surfaceVariant,
-            unfocusedContainerColor = cs.surfaceVariant
-          )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
 
@@ -1110,19 +1104,31 @@ fun CreateEditTimerDialog(
           }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+          Spacer(modifier = Modifier.height(8.dp))
+        }
 
-        // Action Buttons: Save & Cancel
+        HorizontalDivider(
+          color = cs.outline.copy(alpha = 0.25f),
+          thickness = 1.dp
+        )
+
+        // Pinned Action Buttons Footer: Save & Cancel with 52.dp touch height and generous bottom padding
         Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(12.dp)
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 24.dp),
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
           OutlinedButton(
             onClick = onDismiss,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+              .weight(1f)
+              .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.onSurface)
           ) {
-            Text("Cancel")
+            Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
           }
 
           Button(
@@ -1141,6 +1147,9 @@ fun CreateEditTimerDialog(
                 hasError = true
               }
               if (hasError) {
+                coroutineScope.launch {
+                  scrollState.animateScrollTo(0)
+                }
                 return@Button
               }
 
@@ -1160,7 +1169,7 @@ fun CreateEditTimerDialog(
               val timer = CountdownTimer(
                 id = initialTimer?.id ?: 0L,
                 title = CountdownDateUtils.sanitizeTitleInput(title.trim()),
-                subtitle = CountdownDateUtils.sanitizeSubtitleInput(subtitle.trim()),
+                subtitle = "",
                 mode = mode.name,
                 targetDateEpochMs = targetDateEpochMs,
                 targetDaysTotal = sanitizedDays,
@@ -1176,13 +1185,19 @@ fun CreateEditTimerDialog(
             },
             modifier = Modifier
               .weight(1f)
+              .height(52.dp)
               .testTag("save_timer_button"),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
               containerColor = cs.primary,
               contentColor = cs.onPrimary
             )
           ) {
-            Text(if (isEditing) "Save Changes" else "Create Widget", fontWeight = FontWeight.Bold)
+            Text(
+              text = if (isEditing) "Save Changes" else "Create Widget",
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp
+            )
           }
         }
       }

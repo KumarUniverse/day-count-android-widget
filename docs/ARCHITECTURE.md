@@ -236,3 +236,5 @@ gradle :app:testDebugUnitTest
 
 - **Adding Multiple Home Screen Widgets**: Each pinned widget (`appWidgetId`) is mapped to a specific `timerId` in `WidgetUpdateHelper`. If a user drags a widget directly from the launcher's widget picker without pinning from inside the app, it automatically binds to the most recently created timer (`dao.getFirstTimerDirect()`).
 - **Opacity Slider (`0%–100%`)**: Applies alpha transparency strictly to the widget's background fill (`surface`) while keeping the foreground typography and progress bar at full legibility so users can create floating text widgets (`0%` opacity) or translucent glass-style widgets over their wallpaper.
+- **Target-Day (`0`) & Post-Target Progression**: When the target date arrives, the widget counts down to `0`, displays `"TODAY IS THE DAY!"`, and fills the progress bar to `100%`. Once the target date passes, the widget counts upward (`1`, `2`, `3`...) with `"DAY AGO"` / `"DAYS AGO"` to show how many days have elapsed since the milestone.
+

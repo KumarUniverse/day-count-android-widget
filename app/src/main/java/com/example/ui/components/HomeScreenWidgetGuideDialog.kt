@@ -96,7 +96,7 @@ fun HomeScreenWidgetGuideDialog(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-          text = "Your countdown widgets look just like default Android widgets with smooth rounded corners, elevation shadows, and Material You styling.",
+          text = "Your countdown widgets look just like default Android widgets with custom shapes, flat tonal surfaces, and Material You dynamic colors.",
           fontSize = 13.sp,
           color = cs.onSurfaceVariant,
           lineHeight = 18.sp

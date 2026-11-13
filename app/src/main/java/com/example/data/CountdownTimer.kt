@@ -26,7 +26,12 @@ enum class WidgetShapeStyle(val displayName: String) {
   PILL("Capsule"),
   CIRCLE("Circle"),
   HEXAGON("Hexagon"),
-  FLOWER("Flower")
+  CLOVER("Clover"),
+  FLOWER("Flower");
+
+  fun isRadial(): Boolean {
+    return this == CIRCLE || this == HEXAGON || this == CLOVER || this == FLOWER
+  }
 }
 
 enum class WidgetThemeColor(
@@ -35,18 +40,24 @@ enum class WidgetThemeColor(
   val primaryHex: Long,
   val surfaceHex: Long,
   val containerHex: Long,
-  val onSurfaceHex: Long
+  val onSurfaceHex: Long,
+  val titleHex: Long = onSurfaceHex
 ) {
   DYNAMIC("DYNAMIC", "Device Dynamic (MUI)", 0xFFD0E4FF, 0xFF003258, 0xFF003258, 0xFFD0E4FF),
-  WHITE("WHITE", "Pure White", 0xFF0F172A, 0xFFFFFFFF, 0xFFFFFFFF, 0xFF0F172A),
-  CHARCOAL("CHARCOAL", "Grayish-Black", 0xFFF4F4F5, 0xFF18181B, 0xFF18181B, 0xFFF4F4F5),
+  WHITE("WHITE", "Snow White", 0xFF0F172A, 0xFFFFFFFF, 0xFFFFFFFF, 0xFF0F172A),
+  CHARCOAL("CHARCOAL", "Charcoal Black", 0xFFF4F4F5, 0xFF18181B, 0xFF18181B, 0xFFF4F4F5),
   OCEAN("OCEAN", "Ocean Azure", 0xFFD8E6FF, 0xFF0A3055, 0xFF0A3055, 0xFFD8E6FF),
-  CORAL("CORAL", "Coral Sunset", 0xFFFFDCC1, 0xFF4C2700, 0xFF4C2700, 0xFFFFDCC1),
-  EMERALD("EMERALD", "Emerald Mint", 0xFFC4F1BE, 0xFF0B3926, 0xFF0B3926, 0xFFC4F1BE),
+  BABY_BLUE("BABY_BLUE", "Baby Blue", 0xFF002B40, 0xFF8FD9FB, 0xFF8FD9FB, 0xFF002B40),
+  CORAL("CORAL", "Cinnamon Brown", 0xFFFFDCC1, 0xFF4C2700, 0xFF4C2700, 0xFFFFDCC1),
+  TANGERINE_ORANGE("TANGERINE_ORANGE", "Tangerine Orange", 0xFF230D00, 0xFFFA8128, 0xFFFA8128, 0xFF230D00),
+  AMBER("AMBER", "Golden Yellow", 0xFF3E2700, 0xFFFFCA28, 0xFFFFCA28, 0xFF3E2700),
+  EMERALD("EMERALD", "Emerald Green", 0xFFC4F1BE, 0xFF0B3926, 0xFF0B3926, 0xFFC4F1BE),
+  MINT_GREEN("MINT_GREEN", "Mint Green", 0xFF063B1A, 0xFF98FF98, 0xFF98FF98, 0xFF063B1A),
   VIOLET("VIOLET", "Cosmic Violet", 0xFFEADDFF, 0xFF331C5E, 0xFF331C5E, 0xFFEADDFF),
-  AMBER("AMBER", "Golden Glow", 0xFFFFE08B, 0xFF422C00, 0xFF422C00, 0xFFFFE08B),
-  ROSE("ROSE", "Rose Quartz", 0xFFFFD9DE, 0xFF561329, 0xFF561329, 0xFFFFD9DE),
-  SLATE("SLATE", "Midnight Minimal", 0xFFDCE2F9, 0xFF1B263B, 0xFF1B263B, 0xFFDCE2F9);
+  COTTON_CANDY_PINK("COTTON_CANDY_PINK", "Cotton Candy Pink", 0xFF4A0E2E, 0xFFFFB7D5, 0xFFFFB7D5, 0xFF4A0E2E),
+  ROSE_RED("ROSE_RED", "Rose Red", 0xFFFFE5EC, 0xFFDE0038, 0xFFDE0038, 0xFFFFE5EC, 0xFFFFD6A5),
+  ROSE("ROSE", "Mellow Maroon", 0xFFFFD9DE, 0xFF561329, 0xFF561329, 0xFFFFD9DE),
+  SLATE("SLATE", "Midnight Blue", 0xFFDCE2F9, 0xFF1B263B, 0xFF1B263B, 0xFFDCE2F9);
 
   companion object {
     fun fromId(id: String): WidgetThemeColor {

@@ -125,7 +125,7 @@ fun CountdownAppScreen(
                 color = cs.onSurface
               )
               Text(
-                text = "Material Countdown Widgets",
+                text = "Day Countdown Widgets",
                 fontSize = 11.sp,
                 color = cs.primary
               )

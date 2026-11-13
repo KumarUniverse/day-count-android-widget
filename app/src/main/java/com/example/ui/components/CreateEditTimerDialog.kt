@@ -67,6 +67,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -87,6 +89,7 @@ import com.example.data.CountdownTimer
 import com.example.data.DateDisplayMode
 import com.example.data.WidgetShapeStyle
 import com.example.data.WidgetThemeColor
+import com.example.widget.DayCountWidgetProvider
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -912,6 +915,9 @@ fun CreateEditTimerDialog(
           letterSpacing = 1.sp
         )
 
+        val context = LocalContext.current
+        val isDarkAppTheme = cs.background.luminance() < 0.5f
+
         Row(
           modifier = Modifier
             .fillMaxWidth()
@@ -922,11 +928,16 @@ fun CreateEditTimerDialog(
         ) {
           WidgetThemeColor.entries.forEach { themeColor ->
             val isSelected = selectedColorId == themeColor.id
-            val swatchColor = when (themeColor) {
-              WidgetThemeColor.DYNAMIC -> cs.primary
-              WidgetThemeColor.WHITE -> Color.White
-              WidgetThemeColor.CHARCOAL -> Color(0xFF27272A)
-              else -> Color(themeColor.primaryHex)
+            val swatchColor = if (themeColor == WidgetThemeColor.DYNAMIC) {
+              Color(
+                DayCountWidgetProvider.resolveCanvasWidgetColors(
+                  context = context,
+                  themeColor = WidgetThemeColor.DYNAMIC,
+                  overrideIsDark = isDarkAppTheme
+                ).surface
+              )
+            } else {
+              Color(themeColor.surfaceHex)
             }
 
             FilterChip(

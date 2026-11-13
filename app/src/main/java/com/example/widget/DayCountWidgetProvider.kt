@@ -340,8 +340,8 @@ class DayCountWidgetProvider : AppWidgetProvider() {
         surface = themeColor.surfaceHex.toInt(),
         container = themeColor.containerHex.toInt(),
         onSurface = defaultOnSurface,
-        titleColor = defaultOnSurface,
-        footerColor = applyAlpha(defaultOnSurface, 210)
+        titleColor = themeColor.titleHex.toInt(),
+        footerColor = defaultOnSurface
       )
     }
 
@@ -458,9 +458,7 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       }
 
       val shapeStyle = timer.getResolvedShape()
-      val isRadialShape = shapeStyle == WidgetShapeStyle.CIRCLE ||
-        shapeStyle == WidgetShapeStyle.FLOWER ||
-        shapeStyle == WidgetShapeStyle.HEXAGON
+      val isRadialShape = shapeStyle.isRadial()
       val widthPx = if (isRadialShape) 460 else 540
       val heightPx = if (isRadialShape) 460 else 340
 
@@ -502,12 +500,10 @@ class DayCountWidgetProvider : AppWidgetProvider() {
       }
 
       val shapeStyle = timer.getResolvedShape()
-      val isRadialShape = shapeStyle == WidgetShapeStyle.CIRCLE ||
-        shapeStyle == WidgetShapeStyle.FLOWER ||
-        shapeStyle == WidgetShapeStyle.HEXAGON
+      val isRadialShape = shapeStyle.isRadial()
 
       // Use a tight horizontal bounding box (540x340) for Squircle/Rounded/Pill
-      // and a compact square bounding box (460x460) for Circle/Hexagon/Flower
+      // and a compact square bounding box (460x460) for Circle/Hexagon/Clover/Flower
       val widthPx = if (isRadialShape) 460 else 540
       val heightPx = if (isRadialShape) 460 else 340
 
@@ -787,6 +783,22 @@ class DayCountWidgetProvider : AppWidgetProvider() {
             val ey = curr.second + (next.second - curr.second) * smoothing
             if (i == 0) path.moveTo(sx, sy) else path.lineTo(sx, sy)
             path.quadTo(curr.first, curr.second, ex, ey)
+          }
+          path.close()
+        }
+        WidgetShapeStyle.CLOVER -> {
+          // 4-petal clover matching the Google Clock widget (4 diagonal lobes at 45°, 135°, 225°, 315°
+          // and smooth inward curves at 0°, 90°, 180°, 270°)
+          val halfW = w / 2f
+          val halfH = h / 2f
+          val normScale = 1f / 0.936f
+          val steps = 180
+          for (step in 0..steps) {
+            val theta = (2.0 * PI * step) / steps
+            val rFactor = ((1.0 - 0.16 * cos(4.0 * theta)).toFloat() * normScale)
+            val x = cx + halfW * rFactor * cos(theta).toFloat()
+            val y = cy + halfH * rFactor * sin(theta).toFloat()
+            if (step == 0) path.moveTo(x, y) else path.lineTo(x, y)
           }
           path.close()
         }

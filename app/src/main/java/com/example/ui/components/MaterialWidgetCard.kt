@@ -64,9 +64,7 @@ fun MaterialWidgetCard(
   val isDarkAppTheme = cs.background.luminance() < 0.5f
 
   val shapeStyle = timer.getResolvedShape()
-  val isRadialShape = shapeStyle == WidgetShapeStyle.CIRCLE ||
-    shapeStyle == WidgetShapeStyle.FLOWER ||
-    shapeStyle == WidgetShapeStyle.HEXAGON
+  val isRadialShape = shapeStyle.isRadial()
   val isSymmetric = isRadialShape || shapeStyle == WidgetShapeStyle.PILL
 
   val currentDayOrdinal = CountdownDateUtils.toLocalDayOrdinal(currentTimeMs)

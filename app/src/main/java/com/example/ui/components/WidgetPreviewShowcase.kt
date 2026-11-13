@@ -300,6 +300,8 @@ fun WidgetPreviewShowcase(
         letterSpacing = 0.8.sp
       )
 
+      val context = androidx.compose.ui.platform.LocalContext.current
+
       Row(
         modifier = Modifier
           .fillMaxWidth()
@@ -310,11 +312,16 @@ fun WidgetPreviewShowcase(
       ) {
         WidgetThemeColor.entries.forEach { themeColor ->
           val isSelected = currentColor == themeColor
-          val swatchColor = when (themeColor) {
-            WidgetThemeColor.DYNAMIC -> cs.primary
-            WidgetThemeColor.WHITE -> Color.White
-            WidgetThemeColor.CHARCOAL -> Color(0xFF27272A)
-            else -> Color(themeColor.primaryHex)
+          val swatchColor = if (themeColor == WidgetThemeColor.DYNAMIC) {
+            Color(
+              com.example.widget.DayCountWidgetProvider.resolveCanvasWidgetColors(
+                context = context,
+                themeColor = WidgetThemeColor.DYNAMIC,
+                overrideIsDark = !isLightAppTheme
+              ).surface
+            )
+          } else {
+            Color(themeColor.surfaceHex)
           }
 
           FilterChip(

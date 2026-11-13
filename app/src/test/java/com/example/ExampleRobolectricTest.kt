@@ -112,7 +112,7 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `home screen widget uses compact vertical bounding box for horizontal shapes`() {
+  fun `home screen widget uses compact vertical bounding box for horizontal shapes and square for clover`() {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val squircleTimer = CountdownTimer(
       title = "Vacation",
@@ -122,6 +122,10 @@ class ExampleRobolectricTest {
       title = "Sprint",
       shapeStyle = WidgetShapeStyle.CIRCLE.name
     )
+    val cloverTimer = CountdownTimer(
+      title = "Clover Event",
+      shapeStyle = WidgetShapeStyle.CLOVER.name
+    )
 
     val squircleBmp = DayCountWidgetProvider.renderWidgetBitmap(context, squircleTimer)
     assertEquals(540, squircleBmp.width)
@@ -130,6 +134,43 @@ class ExampleRobolectricTest {
     val circleBmp = DayCountWidgetProvider.renderWidgetBitmap(context, circleTimer)
     assertEquals(460, circleBmp.width)
     assertEquals(460, circleBmp.height)
+
+    val cloverBmp = DayCountWidgetProvider.renderWidgetBitmap(context, cloverTimer)
+    assertEquals(460, cloverBmp.width)
+    assertEquals(460, cloverBmp.height)
+    assertEquals("Clover", WidgetShapeStyle.CLOVER.displayName)
+  }
+
+  @Test
+  fun `widget color themes match requested names and background hex values`() {
+    assertEquals("Snow White", WidgetThemeColor.WHITE.displayName)
+    assertEquals("Charcoal Black", WidgetThemeColor.CHARCOAL.displayName)
+    assertEquals("Cinnamon Brown", WidgetThemeColor.CORAL.displayName)
+    assertEquals("Midnight Blue", WidgetThemeColor.SLATE.displayName)
+    assertEquals("Mellow Maroon", WidgetThemeColor.ROSE.displayName)
+    assertEquals("Golden Yellow", WidgetThemeColor.AMBER.displayName)
+    assertEquals(0xFFFFCA28, WidgetThemeColor.AMBER.surfaceHex)
+
+    assertEquals("Baby Blue", WidgetThemeColor.BABY_BLUE.displayName)
+    assertEquals(0xFF8FD9FB, WidgetThemeColor.BABY_BLUE.surfaceHex)
+
+    assertEquals("Rose Red", WidgetThemeColor.ROSE_RED.displayName)
+    assertEquals(0xFFDE0038, WidgetThemeColor.ROSE_RED.surfaceHex)
+    assertEquals(0xFFFFE5EC, WidgetThemeColor.ROSE_RED.primaryHex)
+    assertEquals(0xFFFFD6A5, WidgetThemeColor.ROSE_RED.titleHex)
+
+    assertEquals("Tangerine Orange", WidgetThemeColor.TANGERINE_ORANGE.displayName)
+    assertEquals(0xFFFA8128, WidgetThemeColor.TANGERINE_ORANGE.surfaceHex)
+
+    assertEquals("Cotton Candy Pink", WidgetThemeColor.COTTON_CANDY_PINK.displayName)
+    assertEquals(0xFFFFB7D5, WidgetThemeColor.COTTON_CANDY_PINK.surfaceHex)
+
+    assertEquals("Emerald Green", WidgetThemeColor.EMERALD.displayName)
+    assertEquals(0xFF0B3926, WidgetThemeColor.EMERALD.surfaceHex)
+
+    assertEquals("Mint Green", WidgetThemeColor.MINT_GREEN.displayName)
+    assertEquals(0xFF98FF98, WidgetThemeColor.MINT_GREEN.surfaceHex)
+    assertEquals(0xFF063B1A, WidgetThemeColor.MINT_GREEN.primaryHex)
   }
 
   @Test
